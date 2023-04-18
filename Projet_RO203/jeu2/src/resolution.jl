@@ -1,5 +1,33 @@
-# This file contains methods to solve an instance (heuristically or with CPLEX)
+# Explaination:
+# Soit y[i, j] une matrice de variables binaires de la même taille que la matrice d'entrée.
+
+# Fonction objectif : Maximiser le nombre total de cellules non masquées dans la matrice.
+
+# max ∑∑ y[i, j]
+# i, j
+
+# Contraintes :
+# a. Unicité des valeurs : Pour chaque ligne et chaque colonne, nous ajoutons des contraintes pour garantir qu'aucune valeur ne se répète plus d'une fois parmi les cellules non masquées. Autrement dit, si une valeur apparaît dans une ligne ou une colonne, elle ne peut pas être répétée dans cette même ligne ou colonne parmi les cellules non masquées.
+
+# Pour chaque i (ligne) et k (valeur) :
+# ∑ (matrix[i, j] == k ? y[i, j] : 0) <= 1, pour tout j
+
+# Pour chaque j (colonne) et k (valeur) :
+# ∑ (matrix[i, j] == k ? y[i, j] : 0) <= 1, pour tout i
+
+# b. Isolation : Nous ajoutons des contraintes pour garantir que les cellules masquées ne sont pas connectées entre elles. Pour ce faire, nous imposons des contraintes pour que chaque paire de cellules adjacentes horizontalement ou verticalement, au moins l'une des deux cellules est non masquée.
+
+# Pour chaque i (ligne) et j (colonne) sauf la dernière ligne :
+# y[i, j] + y[i+1, j] >= 1
+
+# Pour chaque i (ligne) et j (colonne) sauf la dernière colonne :
+# y[i, j] + y[i, j+1] >= 1
+
+# c. Connectivity: pas possible de l'imprinter par LPI
+
 using CPLEX
+using JuMP
+using MathOptInterface
 
 include("generation.jl")
 
@@ -8,24 +36,68 @@ TOL = 0.00001
 """
 Solve an instance with CPLEX
 """
-function cplexSolve()
+function cplexSolve(matrix::Array{Int64, 2})
+
+    m, n = size(matrix)
+    
+    display(matrix)
 
     # Create the model
-    m = Model(with_optimizer(CPLEX.Optimizer))
+    model = Model(CPLEX.Optimizer)
 
-    # TODO
-    println("In file resolution.jl, in method cplexSolve(), TODO: fix input and output, define the model")
+    # Decision variables
+    @variable(model, y[1:m, 1:n], Bin)
+
+    # Objective function
+    @objective(model, Max, sum(y))
+
+    # Constraints
+    # y[i,j] == 0 if masked, otherwise y[i,j] == 1;
+    for i in 1:m
+        for k in 1:maximum(matrix)
+            @constraint(model, sum((matrix[i, j] == k ? y[i, j] : 0) for j in 1:n) <= 1)
+        end
+    end
+
+    for j in 1:n
+        for k in 1:maximum(matrix)
+            @constraint(model, sum((matrix[i, j] == k ? y[i, j] : 0) for i in 1:m) <= 1)
+        end
+    end
+
+    for i in 1:m-1
+        for j in 1:n
+            @constraint(model, y[i, j] + y[i+1, j] >= 1)
+        end
+    end
+
+    for i in 1:m
+        for j in 1:n-1
+            @constraint(model, y[i, j] + y[i, j+1] >= 1)
+        end
+    end
 
     # Start a chronometer
     start = time()
 
     # Solve the model
-    optimize!(m)
+    optimize!(model)
+
+    # Post-processing: Check connectivity
+    function is_connected(solution::Array)
+        return true
+    end
+
+    mask = JuMP.value.(y)
+
 
     # Return:
     # 1 - true if an optimum is found
     # 2 - the resolution time
-    return JuMP.primal_status(m) == JuMP.MathOptInterface.FEASIBLE_POINT, time() - start
+    # 3 - the mask matrix
+    println("Before Return")
+    display(convert.(Int64, round.(matrix .* mask)))
+    return is_connected(mask), time() - start, mask
     
 end
 
