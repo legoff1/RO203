@@ -68,25 +68,30 @@ function cocher_une_case(matrice::Matrix, matrice_p::Matrix, matrice_v_p::Matrix
         matrice[case[1],case[2]] = 0
         if check_zeros(matrice)
             if convex_dfs(matrice)
-                return matrice
+                return true, matrice
             end
         end
         matrice[case[1],case[2]] = buffer
     end
 
-    return false
+    return false, matrice
 end
 
 #Fonction principale qui coche des cases tant que le jeu n'est pas résolu
 function heuristicSolve(matrice::Matrix)
     nrows, ncols = size(matrice)
     matrice_p = matrice_poids(matrice)
+    isSolved = false
     while matrice_p != zeros(Int, nrows, ncols)
         matrice_v_p = matrice_voisins_poids(matrice_p)
-        matrice = cocher_une_case(matrice, matrice_p, matrice_v_p)
+        if !cocher_une_case(matrice, matrice_p, matrice_v_p)[1]
+            return isSolved, matrice
+        end
+        matrice = cocher_une_case(matrice, matrice_p, matrice_v_p)[2]
         matrice_p = matrice_poids(matrice)
     end
-    return matrice
+    isSolved = true
+    return isSolved, matrice
 end
         
 

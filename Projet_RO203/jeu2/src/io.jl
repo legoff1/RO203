@@ -90,3 +90,28 @@ function saveInstance(t::Matrix{Int64}, outputFile::String)
     close(writer)
     
 end 
+
+function writeSolution(fout::IOStream, t::Matrix{Int64})
+    
+    println(fout, "t = [")
+    n = size(t, 1)
+    
+    for l in 1:n
+
+        print(fout, "[ ")
+        
+        for c in 1:n
+            print(fout, string(t[l, c]) * " ")
+        end 
+
+        endLine = "]"
+
+        if l != n
+            endLine *= ";"
+        end
+
+        println(fout, endLine)
+    end
+
+    println(fout, "]")
+end 

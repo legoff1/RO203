@@ -29,7 +29,9 @@ using CPLEX
 using JuMP
 using MathOptInterface
 
+include("resolution_heuristique.jl")
 include("generation.jl")
+include("io.jl")
 
 TOL = 0.00001
 
@@ -53,6 +55,8 @@ function cplexSolve(matrix::Array{Int64, 2})
 
     # Constraints
     # y[i,j] == 0 if masked, otherwise y[i,j] == 1;
+
+    # no.1 chaque nombre peut être visible seulement 1 fois au plus dans chaque column ou chaque rang
     for i in 1:m
         for k in 1:maximum(matrix)
             @constraint(model, sum((matrix[i, j] == k ? y[i, j] : 0) for j in 1:n) <= 1)
@@ -65,6 +69,7 @@ function cplexSolve(matrix::Array{Int64, 2})
         end
     end
 
+    # no.2 les cases masqués ne peuvent pas être adjacentes.
     for i in 1:m-1
         for j in 1:n
             @constraint(model, y[i, j] + y[i+1, j] >= 1)
@@ -77,6 +82,57 @@ function cplexSolve(matrix::Array{Int64, 2})
         end
     end
 
+    # no.3 les cases non-masqués doit être convexe (solution compromis, 
+    #      le performance déscend au fur et à mesure que le taille de matrice augmente.)
+    
+    # no.3.1 les seules cases qui sont pas dans les coins sont pas isolés
+    for i in 2:m-1
+        for j in 2:n-1
+            @constraint(model, y[i-1, j] + y[i+1, j] + y[i,j-1] + y[i, j+1] >= 1)
+        end
+    end
+
+    # no.3.2 les cases dans les bornes sont pas isolés
+    for j in 2:n-1
+        @constraint(model, y[1, j-1] + y[1, j+1] + y[2, j] >= 1)
+        @constraint(model, y[m, j-1] + y[m, j+1] + y[m-1, j] >= 1)
+    end
+
+    for i in 2:m-1
+        @constraint(model, y[i-1, 1] + y[i+1, 1] + y[i, 2] >= 1)
+        @constraint(model, y[i-1, n] + y[i+1, n] + y[i, n-1] >= 1)
+    end
+
+    # no.3.3 assurer qu'il n'y a pas une diagonale travers la matrice;
+    if  m < n
+        for j in 2:n-1
+            sum_r = 0
+            sum_l = 0
+            for i in 1:m
+                if (j-i+1 >= 1) && (j+i-1 <= n) 
+                    sum_r += y[i, j+i-1]
+                    sum_l += y[i, j-i+1]
+                end
+            end
+            @constraint(model, sum_r >= 1)
+            @constraint(model, sum_l >= 1)
+        end
+    else
+        for i in 2:m-1
+            sum_u = 0
+            sum_d = 0
+            for j in 1:n
+                if (i-j+1 >= 1) && (i+j-1 <= m) 
+                    sum_u += y[i-j+1, j]
+                    sum_d += y[i+j-1, j]
+                end
+            end
+            @constraint(model, sum_u >= 1)
+            @constraint(model, sum_d >= 1)
+        end
+    end
+
+    
     # Start a chronometer
     start = time()
 
@@ -97,19 +153,14 @@ function cplexSolve(matrix::Array{Int64, 2})
     # 3 - the mask matrix
     println("Before Return")
     display(convert.(Int64, round.(matrix .* mask)))
-    return is_connected(mask), time() - start, mask
+    return is_connected(mask), time() - start, convert.(Int64, round.(matrix .* mask))
     
 end
 
 """
 Heuristically solve an instance
 """
-function heuristicSolve()
 
-    # TODO
-    println("In file resolution.jl, in method heuristicSolve(), TODO: fix input and output, define the model")
-    
-end 
 
 """
 Solve all the instances contained in "../data" through CPLEX and heuristics
@@ -124,7 +175,7 @@ function solveDataSet()
     resFolder = "../res/"
 
     # Array which contains the name of the resolution methods
-    resolutionMethod = ["cplex"]
+    resolutionMethod = ["cplex","heuristique"]
     #resolutionMethod = ["cplex", "heuristique"]
 
     # Array which contains the result folder of each resolution method
@@ -145,7 +196,7 @@ function solveDataSet()
     for file in filter(x->occursin(".txt", x), readdir(dataFolder))  
         
         println("-- Resolution of ", file)
-        readInputFile(dataFolder * file)
+        matrice = readInputFile(dataFolder * file)
 
         # TODO
         println("In file resolution.jl, in method solveDataSet(), TODO: read value returned by readInputFile()")
@@ -165,17 +216,11 @@ function solveDataSet()
                 
                 # If the method is cplex
                 if resolutionMethod[methodId] == "cplex"
-                    
-                    # TODO 
-                    println("In file resolution.jl, in method solveDataSet(), TODO: fix cplexSolve() arguments and returned values")
-                    
                     # Solve it and get the results
-                    isOptimal, resolutionTime = cplexSolve()
-                    
+                    isOptimal, resolutionTime, solution = cplexSolve(matrice)
                     # If a solution is found, write it
                     if isOptimal
-                        # TODO
-                        println("In file resolution.jl, in method solveDataSet(), TODO: write cplex solution in fout") 
+                        writeSolution(fout,solution)
                     end
 
                 # If the method is one of the heuristics
@@ -187,33 +232,38 @@ function solveDataSet()
                     startingTime = time()
                     
                     # While the grid is not solved and less than 100 seconds are elapsed
-                    while !isOptimal && resolutionTime < 100
+                    #while !isSolved && resolutionTime < 100
                         
-                        # TODO 
-                        println("In file resolution.jl, in method solveDataSet(), TODO: fix heuristicSolve() arguments and returned values")
-                        
-                        # Solve it and get the results
-                        isOptimal, resolutionTime = heuristicSolve()
+                    # TODO 
+                    #println("In file resolution.jl, in method solveDataSet(), TODO: fix heuristicSolve() arguments and returned values")
+                    
+                    # Solve it and get the results
+                    isSolved, solution = heuristicSolve(matrice)
+                    resolutionTime = time() - startingTime
+                    
 
-                        # Stop the chronometer
-                        resolutionTime = time() - startingTime
+                    # Stop the chronometer
+                    if isSolved
+                        writeSolution(fout,solution)
+                    end 
+
                         
-                    end
+                    #end
 
                     # Write the solution (if any)
-                    if isOptimal
+                    """
+                    if isSolved
 
                         # TODO
+                        writeSolution(fout,solution)
                         println("In file resolution.jl, in method solveDataSet(), TODO: write the heuristic solution in fout")
                         
                     end 
+                    """
                 end
 
                 println(fout, "solveTime = ", resolutionTime) 
                 println(fout, "isOptimal = ", isOptimal)
-                
-                # TODO
-                println("In file resolution.jl, in method solveDataSet(), TODO: write the solution in fout") 
                 close(fout)
             end
 
