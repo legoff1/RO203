@@ -64,12 +64,14 @@ function generer_matrice_sans_problemes(n::Int64)
             matrice[i, j] = mod(j + i - 2, n) + 1  # calcul de la valeur pour chaque élément de la matrice
         end
     end
+    
     #on permutte des lignes aléatoirement
     lignes_permutees = randperm(n)
     matrice = matrice[lignes_permutees, :]
     #on permutte des colonnes aléatoirement
     colonnes_permutees = randperm(n)
     matrice = matrice[:, colonnes_permutees]
+    
 
     return matrice
 end 

@@ -42,7 +42,7 @@ function cplexSolve(matrix::Array{Int64, 2})
 
     m, n = size(matrix)
     
-    display(matrix)
+    # display(matrix)
 
     # Create the model
     model = Model(CPLEX.Optimizer)
@@ -139,21 +139,20 @@ function cplexSolve(matrix::Array{Int64, 2})
     # Solve the model
     optimize!(model)
 
-    # Post-processing: Check connectivity
-    function is_connected(solution::Array)
-        return true
+    is_feasible = termination_status(model) == MOI.OPTIMAL
+
+    if is_feasible
+        mask = JuMP.value.(y)
+    else
+        return is_feasible, time() - start, fill(-1, m, n)
     end
-
-    mask = JuMP.value.(y)
-
 
     # Return:
     # 1 - true if an optimum is found
     # 2 - the resolution time
     # 3 - the mask matrix
-    println("Before Return")
     display(convert.(Int64, round.(matrix .* mask)))
-    return is_connected(mask), time() - start, convert.(Int64, round.(matrix .* mask))
+    return is_feasible, time() - start, convert.(Int64, round.(matrix .* mask))
     
 end
 
@@ -247,19 +246,7 @@ function solveDataSet()
                         writeSolution(fout,solution)
                     end 
 
-                        
-                    #end
-
-                    # Write the solution (if any)
-                    """
-                    if isSolved
-
-                        # TODO
-                        writeSolution(fout,solution)
-                        println("In file resolution.jl, in method solveDataSet(), TODO: write the heuristic solution in fout")
-                        
-                    end 
-                    """
+                    isOptimal = isSolved
                 end
 
                 println(fout, "solveTime = ", resolutionTime) 

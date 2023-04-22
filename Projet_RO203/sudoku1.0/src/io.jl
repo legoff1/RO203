@@ -419,30 +419,29 @@ function resultsArray(outputFile::String)
 
     # Print the latex file output
     println(fout, raw"""\documentclass{article}
+    \usepackage[french]{babel}
+    \usepackage [utf8] {inputenc} % utf-8 / latin1 
+    \usepackage{multicol}
 
-\usepackage[french]{babel}
-\usepackage [utf8] {inputenc} % utf-8 / latin1 
-\usepackage{multicol}
+    \setlength{\hoffset}{-18pt}
+    \setlength{\oddsidemargin}{0pt} % Marge gauche sur pages impaires
+    \setlength{\evensidemargin}{9pt} % Marge gauche sur pages paires
+    \setlength{\marginparwidth}{54pt} % Largeur de note dans la marge
+    \setlength{\textwidth}{481pt} % Largeur de la zone de texte (17cm)
+    \setlength{\voffset}{-18pt} % Bon pour DOS
+    \setlength{\marginparsep}{7pt} % Séparation de la marge
+    \setlength{\topmargin}{0pt} % Pas de marge en haut
+    \setlength{\headheight}{13pt} % Haut de page
+    \setlength{\headsep}{10pt} % Entre le haut de page et le texte
+    \setlength{\footskip}{27pt} % Bas de page + séparation
+    \setlength{\textheight}{668pt} % Hauteur de la zone de texte (25cm)
 
-\setlength{\hoffset}{-18pt}
-\setlength{\oddsidemargin}{0pt} % Marge gauche sur pages impaires
-\setlength{\evensidemargin}{9pt} % Marge gauche sur pages paires
-\setlength{\marginparwidth}{54pt} % Largeur de note dans la marge
-\setlength{\textwidth}{481pt} % Largeur de la zone de texte (17cm)
-\setlength{\voffset}{-18pt} % Bon pour DOS
-\setlength{\marginparsep}{7pt} % Séparation de la marge
-\setlength{\topmargin}{0pt} % Pas de marge en haut
-\setlength{\headheight}{13pt} % Haut de page
-\setlength{\headsep}{10pt} % Entre le haut de page et le texte
-\setlength{\footskip}{27pt} % Bas de page + séparation
-\setlength{\textheight}{668pt} % Hauteur de la zone de texte (25cm)
-
-\begin{document}""")
+    \begin{document}""")
 
     header = raw"""
-\begin{center}
-\renewcommand{\arraystretch}{1.4} 
- \begin{tabular}{l"""
+    \begin{center}
+    \renewcommand{\arraystretch}{1.4} 
+    \begin{tabular}{l"""
 
     # Name of the subfolder of the result folder (i.e, the resolution methods used)
     folderName = Vector{String}()
